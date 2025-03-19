@@ -1,0 +1,243 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: hsl(0 0% 90%);
+    --foreground: hsl(0 0% 3.9%);
+    --btn-black: hsl(0, 0%, 10%);
+    --btn-red: hsla(2, 100%, 93%, 1);
+    --text-red: hsla(3, 100%, 67%, 1);
+  }
+}
+
+@theme{
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+main {
+  background-color: var(--color-background);
+}
+
+.span-color {
+  background-color: var(--color-background);
+}
+
+.btn-black {
+  background-color: var(--btn-black);
+}
+
+.btn-red {
+background-color: var(--btn-red);
+color: var(--text-red);
+}
+
+@keyframes gradientAnimation {
+  0% {
+    box-shadow: 0 0 10px #ea5a5a, 0 0 20px #ea5a5a, 0 0 30px #ea5a5a;
+  }
+  25% {
+    box-shadow: 0 0 10px #a7771f, 0 0 20px #a7771f, 0 0 30px #a7771f;
+  }
+  50% {
+    box-shadow: 0 0 10px #6d498f, 0 0 20px #6d498f, 0 0 30px #6d498f;
+  }
+  75% {
+    box-shadow: 0 0 10px #92e992, 0 0 20px #92e992, 0 0 30px #92e992;
+  }
+  100% {
+    box-shadow: 0 0 10px #9696f6, 0 0 20px #9696f6, 0 0 30px #9696f6;
+  }
+}
+
+.shadow-gradient {
+  animation: gradientAnimation 3s infinite;
+}
+
+
+@keyframes gradientAnimation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-gradient {
+  background: linear-gradient(135deg, #6DD5FA, #b0adf4, #bdb5c3, #f2f1d6);
+  background-size: 400% 400%;
+  animation: gradientAnimation 10s ease infinite;
+}
+
+@keyframes scale {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.bouncing-button {
+  animation: scale 3s infinite;
+}
+
+.profile-button {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.profile-button:hover {
+  transition: background-color 0.5s ease;
+  background: linear-gradient(135deg, rgba(20, 30, 48, 1), rgba(36, 59, 85, 0.2));
+}
+
+.profile-button:hover span {
+  transition: color 0.3s ease;
+  color:white;
+}
+
+.profile-button:hover img {
+  background-color: white; /* Change image background to white on hover */
+  transition: background-color 0.3s ease;
+}
+
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-pulse {
+  animation: pulse 1.5s infinite;
+}
+
+/* Fade-in animation for the image */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Slide-in animation */
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.5s ease-out forwards;
+}
+
+/* Slide-out animation */
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+.animate-slide-out {
+  animation: slideOut 0.5s ease-out forwards;
+}
+
+/* Coin animation */
+@keyframes coinAnimation {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2) rotate(15deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.animate-coin {
+  animation: coinAnimation 2s ease-out;
+}
+
+@media (max-width: 640px) {
+  .gradient-bg-small-screen {
+    background: linear-gradient(104deg, #1CB5E0, #000046);
+  }
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 10px rgba(147, 112, 219, 0.7), 0 0 20px rgba(255, 105, 180, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(147, 112, 219, 0.9), 0 0 30px rgba(255, 105, 180, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(147, 112, 219, 0.7), 0 0 20px rgba(255, 105, 180, 0.5);
+  }
+}
+
+.listening-glow {
+  animation: glow 2s infinite;
+  background: linear-gradient(135deg, rgba(173, 216, 230, 0.8), rgba(100, 149, 237, 0.8));
+}
+
+@keyframes moveLeftRight {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-10px); /* Move left */
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-move-left-right {
+  animation: moveLeftRight 1.5s ease-in-out infinite; /* Smooth back-and-forth motion */
+}
+
+@keyframes moveUpDown {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px); /* Move up */
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-move-up-down {
+  animation: moveUpDown 1.5s ease-in-out infinite; /* Smooth up-and-down motion */
+}
