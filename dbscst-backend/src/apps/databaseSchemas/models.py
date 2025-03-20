@@ -1,15 +1,38 @@
+from uuid import UUID as PyUUID
+from typing import List, Optional, Dict, Any
 from datetime import datetime
-from typing import List, Optional
-from uuid import uuid4, UUID as PyUUID
-
-from sqlalchemy import ForeignKey, String, Integer, Text, Boolean, DateTime, CheckConstraint, JSON
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, String, text, Text, Boolean, DateTime, JSON
 from sqlalchemy.sql import func
-from core.database import Base, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+from core.database import Base
 
 
 class User(Base):
+    """
+    Represents a user in the system.
+
+    Attributes:
+        id (PyUUID): The unique identifier for the user (UUID).
+        first_name (str): The first name of the user.
+        last_name (str): The last name of the user.
+        email (str): The email address of the user (unique and indexed).
+        password (str): The hashed password of the user.
+        is_active (bool): Indicates whether the user account is active (default: True).
+        verified (bool): Indicates whether the user's email has been verified (default: False).
+        created_at (datetime): The timestamp when the user was created (default: current time).
+        last_login (Optional[datetime]): The timestamp of the user's last login (nullable).
+        has_taken_tour (bool): Indicates whether the user has taken the onboarding tour (default: False).
+
+    Relationships:
+        projects (List[Project]): A list of projects associated with the user. 
+                                  Uses a one-to-many relationship with the `Project` model.
+                                  Cascades delete operations to orphaned projects.
+
+    Methods:
+        __repr__(): Returns a string representation of the user object.
+    """
+
     __tablename__ = "users"
 
     id: Mapped[PyUUID] = mapped_column(
@@ -24,29 +47,31 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     has_taken_tour: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    # Relationships
     projects: Mapped[List["Project"]] = relationship(
         "Project", back_populates="user", cascade="all, delete-orphan"
     )
-    achievements: Mapped[List["Achievement"]] = relationship(
-        "Achievement", back_populates="user", cascade="all, delete-orphan"
-    )
-    activities: Mapped[List["UserActivity"]] = relationship(
-        "UserActivity", back_populates="user", cascade="all, delete-orphan"
-    )
-
-    @property
-    def logged_in_today(self) -> bool:
-        if not self.last_login:
-            return False
-        return self.last_login.date() == datetime.utcnow().date()
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email})>"
 
 
 class UnverifiedUser(Base):
+    """
+    Represents an unverified user in the database.
+
+    Attributes:
+        id (PyUUID): The unique identifier for the unverified user (UUID).
+        first_name (str): The first name of the user.
+        last_name (str): The last name of the user.
+        email (str): The email address of the user (unique and indexed).
+        password (str): The hashed password of the user.
+        verification_token (str): The verification token sent to the user's email.
+        created_at (datetime): The timestamp when the user was created.
+
+    Methods:
+        __repr__: Returns a string representation of the UnverifiedUser object.
+    """
+     
     __tablename__ = "unverified_users"
 
     id: Mapped[PyUUID] = mapped_column(
@@ -59,8 +84,32 @@ class UnverifiedUser(Base):
     verification_token: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    def __repr__(self):
+        return f"<UnverifiedUser(id={self.id}, email={self.email})>"
+
 
 class Project(Base):
+    """
+    Represents a project in the database.
+
+    Attributes:
+        id (PyUUID): The unique identifier for the project (UUID).
+        user_id (PyUUID): The ID of the user who owns the project (foreign key to `users.id`).
+        name (str): The name of the project.
+        description (Optional[str]): A description of the project (optional).
+        created_at (datetime): The timestamp when the project was created.
+        updated_at (datetime): The timestamp when the project was last updated.
+        user (User): The user who owns the project (relationship to `User` model).
+        schemas (List[Schema]): The list of schemas associated with the project (relationship to `Schema` model).
+
+    Relationships:
+        - `user`: Many-to-one relationship with the `User` model.
+        - `schemas`: One-to-many relationship with the `Schema` model, with cascade delete.
+
+    Methods:
+        __repr__(): Returns a string representation of the project.
+    """
+
     __tablename__ = "projects"
 
     id: Mapped[PyUUID] = mapped_column(
@@ -69,44 +118,49 @@ class Project(Base):
     user_id: Mapped[PyUUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    schema_type: Mapped[str] = mapped_column(String, nullable=False)  # SQL or NoSQL
-    schema_definition: Mapped[dict] = mapped_column(JSON, nullable=False)  # Stores the generated schema
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
-
-    # Relationships
     user: Mapped["User"] = relationship("User", back_populates="projects")
+    schemas: Mapped[List["Schema"]] = relationship(
+        "Schema", back_populates="project", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
-        return f"<Project(id={self.id}, name={self.name}, schema_type={self.schema_type})>"
+        return f"<Project(id={self.id}, name={self.name})>"
 
 
-class Achievement(Base):
-    __tablename__ = "achievements"
+class Schema(Base):
+    """
+    Represents a database schema in the system.
+
+    Attributes:
+        id (PyUUID): The unique identifier for the schema (primary key).
+        project_id (PyUUID): The ID of the project this schema belongs to (foreign key).
+        name (str): The name of the table (e.g., "users").
+        description (Optional[str]): A description of the table (optional).
+        schema_type (str): The type of schema (e.g., "SQL" or "NoSQL").
+        fields (List[Dict[str, Any]]): The fields of the table, stored as a JSON object.
+        created_at (datetime): The timestamp when the schema was created.
+
+    Relationships:
+        project (Project): The project this schema belongs to (many-to-one relationship).
+
+    Methods:
+        __repr__(): Returns a string representation of the schema.
+    """
+
+    __tablename__ = "schemas"
 
     id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()")
     )
-    user_id: Mapped[PyUUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    tag: Mapped[str] = mapped_column(String, nullable=False)
-    requirement: Mapped[int] = mapped_column(Integer, nullable=False)
-    achieved_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    project_id: Mapped[PyUUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)  # Name of the table (e.g., "users")
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Description of the table
+    schema_type: Mapped[str] = mapped_column(String, nullable=False)  # SQL or NoSQL
+    fields: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, nullable=False)  # Fields of the table
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    project: Mapped["Project"] = relationship("Project", back_populates="schemas")
 
-    # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="achievements")
-
-
-class UserActivity(Base):
-    __tablename__ = "user_activities"
-
-    id: Mapped[PyUUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()")
-    )
-    user_id: Mapped[PyUUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    activity_type: Mapped[str] = mapped_column(String, nullable=False)
-    activity_data: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    activity_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-
-    # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="activities")
+    def __repr__(self):
+        return f"<Schema(id={self.id}, name={self.name}, type={self.schema_type})>"
