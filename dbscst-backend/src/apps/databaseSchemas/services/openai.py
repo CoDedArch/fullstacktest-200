@@ -1,162 +1,162 @@
-import io
-from typing import List, Optional
-
-from openai import AsyncOpenAI
-from pydantic import BaseModel
-import wave
-
+import uuid
+import json
+from typing import List, Optional,Dict
+from pydantic import ValidationError
+from apps.databaseSchemas.schemas import DatabaseSchema
 from core.config import settings
+from openai import AsyncOpenAI
 
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 
-def create_wav_buffer(raw_data, sample_rate=48000, channels=1, sample_width=2):
-    """
-    Creates an in-memory WAV file buffer from raw PCM audio data.
+schema_prompt = """
+You are a database schema generation assistant. Given a description of a project or a question about a project, generate a database schema that meets the requirements.
 
-    This function takes raw PCM audio data and encodes it into a WAV file format 
-    using the specified audio parameters. The generated WAV file is stored in an 
-    in-memory `BytesIO` buffer, making it easy to use without writing to disk.
-
-    Args:
-        raw_data (bytes): The raw PCM audio data to be written to the WAV file.
-        sample_rate (int, optional): The sample rate of the audio in Hz. Defaults to 48000 Hz.
-        channels (int, optional): The number of audio channels (1 for mono, 2 for stereo). Defaults to 1 (mono).
-        sample_width (int, optional): The sample width in bytes (e.g., 2 for 16-bit audio). Defaults to 2.
-
-    Returns:
-        io.BytesIO: A `BytesIO` buffer containing the generated WAV file.
-                    The buffer's `.name` attribute is set to "file.wav" for convenience.
-
-    Notes:
-        - The function uses the `wave` module to format the audio data into a WAV file.
-        - The buffer is rewound to the beginning (`seek(0)`) before returning.
-        - The resulting buffer can be used for streaming, HTTP responses, or further processing.
-    """
-    wav_buffer = io.BytesIO()
-
-    with wave.open(wav_buffer, "wb") as wav_file:
-        wav_file.setnchannels(channels)
-        wav_file.setsampwidth(sample_width) 
-        wav_file.setframerate(sample_rate)  
-        wav_file.writeframes(raw_data)
-
-    wav_buffer.seek(0)
-    wav_buffer.name = "file.wav"
-    return wav_buffer
-
-
-
-async def transcript_to_text(audio_chunk: bytes) -> str:
-    """
-    Transcribes an audio chunk into text using OpenAI's Whisper model.
-
-    This function takes raw audio data, converts it into a WAV file buffer, 
-    and sends it to OpenAI's Whisper transcription service asynchronously. 
-    The transcribed text is then returned.
-
-    Args:
-        audio_chunk (bytes): The raw PCM audio data to be transcribed.
-
-    Returns:
-        str: The transcribed text from the audio.
-
-    Raises:
-        Exception: If the transcription process fails, an error message is printed.
-
-    Notes:
-        - The function uses `create_wav_buffer` to convert raw audio data into 
-          a WAV format before sending it for transcription.
-        - The Whisper model (`whisper-1`) is used for processing.
-        - If an exception occurs, it is caught and logged, but no specific 
-          error handling is implemented beyond printing the error.
-    """
-    try:
-        buffer = create_wav_buffer(audio_chunk)
-        transcription = await client.audio.transcriptions.create(
-            model="whisper-1",
-            file=buffer,
-        )
-        return transcription.text
-
-    except Exception as e:
-        print("Could not transcribe", e)
-
-
-class QuoteId(BaseModel):
-    book: str
-    chapter: int
-    verse_number: int
-
-
-class QuoteIds(BaseModel):
-    ids: List[QuoteId]
-
-
-prompt = """\
-You are a precise Bible quote identification system. Given any input text, identify and extract only definitive Bible quotes (not paraphrases or similar-sounding passages).
+## Instructions
+1. If the user provides a project description, generate a database schema based on the description.
+2. If the user asks a question, interpret the question as a request to modify or refine the schema, and generate a schema based on the implied requirements.
+3. Do not answer the user's question directly. Instead, always generate a schema that reflects the intent of the question or description.
+4. The schema must be SQL-compatible and adhere to SQL standards.
 
 ## Output Format
-For each quote found, provide:
-- Book: The Bible book name in lowercase (e.g., genesis, psalms, matthew)
-- Chapter: The chapter number as an integer
-- Verse: The verse number as an integer
+For each table, provide:
+- name: The name of the table
+- fields: A list of fields, each with:
+  - name: The name of the field
+  - type: The data type of the field (e.g., string, integer, boolean)
+  - required: Whether the field is required (default: true)
+  - description: A description of the field (optional)
+- description: A description of the table (optional)
 
 ## Rules
-1. Only extract quotes that are explicitly referenced or clearly identifiable as Bible verses
-2. Ignore paraphrases or similar-sounding religious text
-3. If a quote is ambiguous or uncertain, exclude it
-4. Book names must be in lowercase
-5. Chapter and verse numbers must be integers
-6. Include partial verses only if they are clearly identified as such
+1. Use clear and concise names for tables and fields.
+2. Include only fields that are necessary for the project.
+3. Use appropriate SQL data types for each field (e.g., VARCHAR, INTEGER, BOOLEAN, DATE, etc.).
+4. Provide descriptions for tables and fields where necessary.
+5. Do not answer questions directly. Always generate a schema.
+6. The schema must be SQL-compatible and adhere to SQL standards.
 
-#! IMPORTANT: Do not assume quotes. If not's not mentioned well, don't output it.
+## SQL-Specific Rules
+1. Table and field names must be valid SQL identifiers (e.g., alphanumeric, underscores, no spaces).
+2. Use standard SQL data types (e.g., VARCHAR, INTEGER, BOOLEAN, DATE, TIMESTAMP, FLOAT, etc.).
+3. Define primary keys for each table using the `id` field.
+4. Use foreign keys to define relationships between tables.
+5. Avoid using reserved SQL keywords for table or field names.
 
 ## Output Structure
-[
-    {
-        "book": str,
-        "chapter": int,
-        "verse_number": int,
-    },
-    ...
-]
+{
+    "tables": [
+        {
+            "name": "users",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "INTEGER",
+                    "required": true,
+                    "description": "Primary key for the user"
+                },
+                {
+                    "name": "username",
+                    "type": "VARCHAR(255)",
+                    "required": true,
+                    "description": "Username for the user"
+                }
+            ],
+            "description": "Table for storing user information"
+        }
+    ],
+    "follow_up_question": "Does this schema look good to you? If not, what changes would you like to make?"
+}
 """
 
-async def detect_quotes(text: str) -> Optional[List[QuoteId]]:
+def generate_project_url() -> str:
+    """Generates a unique URL for the project."""
+    return f"https://project-schema/{uuid.uuid4()}"
+
+async def generate_schema(
+    project_description: str,
+    conversation_state: Dict,
+    user_feedback: Optional[str] = None,
+) -> Optional[DatabaseSchema]:
     """
-    Detects quotes in a given text using OpenAI's GPT-4o-mini model.
-
-    This function sends the input text to OpenAI's chat completion API with a predefined 
-    system prompt to identify and extract quote IDs. The response is parsed into a list 
-    of `QuoteId` objects.
-
-    Args:
-        text (str): The input text to analyze for quotes.
-
-    Returns:
-        Optional[List[QuoteId]]: A list of detected `QuoteId` objects if quotes are found, 
-        or `None` if the input text is empty.
-
-    Raises:
-        Exception: If the API request fails, an error may occur (not explicitly handled here).
-
-    Notes:
-        - If `text` is empty, the function returns `None` immediately.
-        - Uses OpenAI's `gpt-4o-mini` model with a structured system prompt (`prompt`).
-        - The response is expected in a structured format defined by `QuoteIds`.
-        - Ensure `client.beta.chat.completions.parse` is properly configured for structured outputs.
+    Generates or modifies a database schema based on the project description and user feedback.
+    If the user types "yes", returns the existing schema without modification.
+    The Schema generated must be SQL-compatible and adhere to SQL standards.
     """
-    if not text:
-        return
 
-    completion = await client.beta.chat.completions.parse(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": text},
-        ],
-        response_format=QuoteIds,
-    )
+    if user_feedback and user_feedback.strip().lower() == "yes":
+        if "generated_schema" in conversation_state:
+            return conversation_state["generated_schema"], conversation_state
+        else:
+            return None, conversation_state
 
-    return completion.choices[0].message.parsed.ids
+    project_title = None
+    if conversation_state["is_first_prompt"]:
+        try:
+            completion_title = await client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "Extract a short and meaningful project title from the given description."},
+                    {"role": "user", "content": project_description},
+                ],
+            )
+            project_title = completion_title.choices[0].message.content.strip()
+        except Exception as e:
+            project_title = "Generated Schema"
+
+    try:
+        if conversation_state["is_first_prompt"]:
+            completion = await client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": schema_prompt},
+                    {"role": "user", "content": project_description},
+                ],
+            )
+        else:
+            completion = await client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": schema_prompt},
+                    {"role": "assistant", "content": json.dumps(conversation_state["generated_schema"].model_dump())},
+                    {"role": "user", "content": user_feedback},
+                ],
+            )
+
+        schema_json = completion.choices[0].message.content
+
+        try:
+            schema_data = json.loads(schema_json)
+        except json.JSONDecodeError:
+            return None, {
+                **conversation_state,
+                "follow_up_question": "Your feedback was unclear. Please provide more specific instructions.",
+            }
+
+        # Add missing fields if necessary
+        if "follow_up_question" not in schema_data:
+            schema_data["follow_up_question"] = "Does this schema look good to you? If not, what changes would you like to make?"
+        schema_data["project_title"] = project_title
+        schema_data["project_url"] = generate_project_url()
+
+        schema = DatabaseSchema.model_validate(schema_data)
+        print(schema)
+
+        # Update conversation state
+        conversation_state["generated_schema"] = schema
+
+        follow_up_question = schema_data.get("follow_up_question", "Does this schema look good to you? If not, what changes would you like to make?")
+        conversation_state["follow_up_question"] = follow_up_question
+
+        # Set is_first_prompt to False only after the after a follow up
+        if not conversation_state["is_first_prompt"]:
+            conversation_state["is_first_prompt"] = False
+
+        return schema, conversation_state
+
+    except ValidationError as e:
+        print(f"Validation error in schema JSON: {str(e)}")
+        return None, conversation_state
+    except Exception as e:
+        print(f"Error generating schema: {str(e)}")
+        return None, conversation_state
