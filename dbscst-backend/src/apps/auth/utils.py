@@ -1,11 +1,11 @@
-from passlib.context import CryptContext
-from jose import JWTError, jwt
-from datetime import datetime, timedelta
-from core.config import settings
 import smtplib
-from fastapi import HTTPException
-from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from jose import jwt
+from passlib.context import CryptContext
+from fastapi import HTTPException
+from core.config import settings
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -30,23 +30,33 @@ def create_access_token(data: dict):
 
 def create_verification_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(hours=24)  # Token expires in 24 hours
+    expire = datetime.utcnow() + timedelta(hours=24) 
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
 async def send_verification_email(email: str, token: str):
-    verification_url = f"https://cf67-129-224-201-140.ngrok-free.app/auth/verify?token={token}"
+    """
+    Sends a verification email to the user with a link to verify their account.
+
+    Args:
+        email (str): The email address of the user.
+        token (str): The verification token generated for the user.
+
+    Raises:
+        HTTPException: If there is an error while sending the email.
+                      - 500 Internal Server Error: Failed to send verification email.
+    """
+     
+    verification_url = f"https://1b26-129-224-201-159.ngrok-free.app/auth/verify?token={token}"
     
-    # Create a multipart message
     msg = MIMEMultipart()
     msg["From"] = "KeyMap Team <kelvingbolo98@gmail.com>"
     msg["To"] = email
     msg["Subject"] = "Verify Your Account for KeyMap"
     msg["Reply-To"] = "kelvingbolo98@gmail.com"
 
-    # Add HTML content
     html_content = f"""
         <p>Hello,</p>
         <p>Thank you for signing up for KeyMap! Please click the link below to verify your account:</p>
