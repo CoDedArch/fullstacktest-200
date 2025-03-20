@@ -50,19 +50,19 @@ class DatabaseSessionManager:
         """
         print(database_url)
         self.engine = create_async_engine(
-            database_url,
-            pool_size=20,
-            max_overflow=10,
-            pool_timeout=30,
-            pool_recycle=60 * 30,
-            pool_pre_ping=True,
-            connect_args={
-                "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
-                "statement_cache_size": 0,
-                "prepared_statement_cache_size": 0,
-            },
-        )
-
+    database_url,
+    echo=True,
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=60 * 30,
+    pool_pre_ping=True,
+    connect_args={
+        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+    },
+)
         self.session_maker = sessionmaker(
             autocommit=False,
             autoflush=False,
@@ -125,7 +125,7 @@ class DatabaseSessionManager:
         await self.engine.dispose()
 
 
-session_manager = DatabaseSessionManager(database_url="postgresql+asyncpg://postgres:#Includeiostream98@localhost:5432/postgres?connect_timeout=10&sslmode=prefer")
+session_manager = DatabaseSessionManager(database_url=settings.APOSTGRES_DATABASE_URL)
 
 
 async def aget_db() -> AsyncGenerator[AsyncSession, None]:
