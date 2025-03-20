@@ -1,310 +1,224 @@
-import asyncio
-from sqlalchemy import select
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, Depends, HTTPException
+import uuid
+import logging
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
-from sqlalchemy.sql import func
-from apps.databaseSchema.models import User,UserActivity,Achievement
+from sqlalchemy import delete
+from sqlalchemy.future import select
 from core.database import aget_db
 from core.security import verify_api_key
-from apps.databaseSchema.services import QuoteDetectionService
-from apps.databaseSchema.models import Verse, Version
-import logging
+from apps.auth.router import get_current_user
+from apps.databaseSchemas.services import generate_schema
+from apps.databaseSchemas.models import Project, Schema, User
+from apps.databaseSchemas.schemas import  GenerateSchemaRequest, GeneratedSchemaResponse
 
 
 router = APIRouter()
+# In-memory store for conversation states (replace with Redis or DB in production)
+conversation_states = {}
 
+# This State will ensure that we don't keep creating new projects for every user feedback
+same_project = False
 
-async def award_achievement(session, user, name, tag, requirement):
-    """Check if a user qualifies for an achievement and award it if not already given."""
-    existing_achievement = await session.execute(
-        select(Achievement).where(Achievement.user_id == user.id, Achievement.tag == tag)
-    )
-    if not existing_achievement.scalar_one_or_none():
-        new_achievement = Achievement(user_id=user.id, name=name, tag=tag, requirement=requirement)
-        session.add(new_achievement)
-        await session.commit()
-
-
-async def track_verse_catch(session, user, book_name):
-    """Track caught verses and handle rewards."""
-    try:
-        print(f"Tracking verse catch for user {user.email}, book: {book_name}")
-
-        # Create a new UserActivity record for the verse catch
-        new_activity = UserActivity(
-            user_id=user.id,
-            activity_type="verse_caught",
-            activity_data=book_name,  # Store the book name or verse details
-            activity_date=datetime.utcnow(),
-        )
-        session.add(new_activity)
-        print("Created new UserActivity record for verse_caught")
-
-        # Increase faith_coins by 2
-        user.faith_coins += 2
-        print(f"Updated faith_coins to {user.faith_coins}")
-
-        # Count total verses caught
-        total_verses = await session.scalar(
-            select(func.count()).where(
-                UserActivity.user_id == user.id, 
-                UserActivity.activity_type == "verse_caught"
-            )
-        )
-        print(f"Total verses caught: {total_verses}")
-
-        # Award "Verse Catcher" after 100 verses
-        if total_verses >= 10:  # Change this to 100 for the actual requirement
-            print("Awarding Verse Catcher achievement")
-            await award_achievement(session, user, "Verse Catcher", "Verse Catcher", 100)
-
-        # Track unique books caught
-        unique_books = await session.scalars(
-            select(UserActivity.activity_data).where(
-                UserActivity.user_id == user.id, 
-                UserActivity.activity_type == "verse_caught"
-            ).distinct()
-        )
-        unique_books = set(unique_books) | {book_name}
-        print(f"Unique books caught: {unique_books}")
-
-        # Award "Bible Explorer" after catching verses from 5 unique books
-        if len(unique_books) >= 5:  # Change this to 5 for the actual requirement
-            print("Awarding Bible Explorer achievement")
-            await award_achievement(session, user, "Bible Explorer", "Bible Explorer", 5)
-
-        # Commit changes to the database
-        await session.commit()
-        print("done committing updates")
-
-    except Exception as e:
-        print(f"Error in track_verse_catch: {e}")
-        await session.rollback()
-        raise
-
-
-async def track_daily_login(session, user):
-    """Check and reward daily login streaks."""
-    # Increment or reset streak
-    last_activity = await session.scalar(
-        select(UserActivity).where(
-            UserActivity.user_id == user.id, UserActivity.activity_type == "daily_login"
-        ).order_by(UserActivity.activity_date.desc()).limit(1)
-    )
-
-    if last_activity and last_activity.activity_date.date() == (datetime.utcnow() - timedelta(days=1)).date():
-        user.streak += 1
-    else:
-        user.streak = 1
-
-    # Award "Daily Devotee" after 7 days
-    if user.streak >= 7:
-        await award_achievement(session, user, "Daily Devotee", "Daily Devotee", 7)
-
-    # Log the daily login activity
-    new_activity = UserActivity(user_id=user.id, activity_type="daily_login")
-    session.add(new_activity)
-
-    await session.commit()
-
-
-async def track_sharing(session, user):
-    """Track shared verses and award 'Sharing Saint' tag."""
-    total_shared = await session.scalar(
-        select(func.count()).where(UserActivity.user_id == user.id, UserActivity.activity_type == "verse_shared")
-    )
-
-    if total_shared >= 50:
-        await award_achievement(session, user, "Sharing Saint", "Sharing Saint", 50)
-
-    await session.commit()
-
-
-
-async def process_audio_queue(websocket: WebSocket, session: AsyncSession, queue: asyncio.Queue, version):
-    """
-    Background task to process audio chunks from a queue, detect quotes in the audio,
-    and send the detected quotes via a WebSocket.
-
-    This function is an asynchronous task that continuously retrieves audio chunks 
-    from the provided queue. For each chunk, it uses the QuoteDetectionService to 
-    scan for quotes. If any quotes are detected, they are serialized and sent 
-    through the provided WebSocket connection.
-
-    Args:
-        websocket (WebSocket): The WebSocket connection used to send detected quotes.
-        session (AsyncSession): The database session used for querying or interacting 
-                                with the database during quote detection.
-        queue (asyncio.Queue): An asyncio queue that holds audio chunks to be processed. 
-                               The queue should contain audio chunks that are asynchronously 
-                               processed one at a time.
-
-    Returns:
-        None
-
-    Raises:
-        Any exceptions raised by QuoteDetectionService or WebSocket send operation
-        are propagated, and the task will stop processing further chunks if an error occurs.
-
-    Notes:
-        - The function runs indefinitely until a `None` value is retrieved from the queue, 
-          which signals the task to stop processing.
-        - The `quote_detected` attribute of the detector indicates if any quotes were found 
-          in the audio chunk.
-        - The `model_dump()` method serializes the detected quotes for sending via WebSocket.
-    """
-    while True:
-        audio_chunk = await queue.get()
-        if audio_chunk is None:
-            break
-
-        try:
-            detector = QuoteDetectionService(session, audio_chunk, version=version)
-            await detector.scan_for_quotes()
-            if detector.quote_detected:
-                print("in1")
-                await websocket.send_json([q.model_dump() for q in detector.quotes])
-                print("in2")
-
-                print(websocket.user_email)
-                # Fetch the user
-                user = await session.execute(select(User).where(User.email == websocket.user_email))
-                user = user.scalar_one_or_none()
-                if user:
-                    print("will update User data")
-                    # Track verse catch and update achievements
-                    for quote in detector.quotes:
-                        await track_verse_catch(session, user, quote.book)
-                print("in4")
-        except Exception as e:
-            print(f"Error processing audio chunk: {e}")
-        finally:
-            queue.task_done()
-
-
-@router.websocket("/ws/detect-quotes")
-async def websocket_endpoint(
-    websocket: WebSocket,
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+@router.post("/api/generate-schema", response_model=GeneratedSchemaResponse)
+async def generate_schema_endpoint(
+    request: GenerateSchemaRequest,
     session: AsyncSession = Depends(aget_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    WebSocket endpoint for detecting quotes in real-time audio streams.
-
-    This WebSocket endpoint allows clients to send audio chunks for real-time 
-    quote detection. The received audio data is processed asynchronously using 
-    `process_audio_queue`, which scans for quotes and sends detected quotes 
-    back to the client.
+    Endpoint to generate or modify a database schema based on a project description or user feedback.
 
     Args:
-        websocket (WebSocket): The WebSocket connection used for receiving audio data 
-                               and sending detected quotes.
-        session (AsyncSession): A database session dependency for interacting with the database.
+        request (GenerateSchemaRequest): The request object containing:
+            - project_description (str): The description of the project.
+            - api_key (str): The API key for authentication.
+            - conversation_id (str, optional): The ID of the ongoing conversation.
+            - user_feedback (str, optional): Feedback provided by the user to refine the schema.
+        session (AsyncSession): The database session.
+        current_user (User): The currently authenticated user.
 
-    Behavior:
-        - The client must provide a valid `api_key` as a query parameter for authentication.
-        - If authentication fails, the WebSocket is closed with status code `WS_1008_POLICY_VIOLATION`.
-        - If authentication succeeds, the WebSocket connection is accepted.
-        - Audio chunks sent by the client are placed into an `asyncio.Queue` for processing.
-        - A background task (`process_audio_queue`) processes the audio data.
-        - The connection remains open until the client disconnects or an error occurs.
-        - When the connection is closed, the processing task is safely shut down.
+    Returns:
+        GeneratedSchemaResponse: The response containing:
+            - project_title (str): The title of the project.
+            - tables (List[Dict]): The generated or updated schema tables.
+            - follow_up_question (str): A question to guide the user for further refinement.
+            - conversation_id (str): The ID of the ongoing conversation.
 
-    Exceptions:
-        - `WebSocketDisconnect`: Raised when the client disconnects.
-        - Other exceptions are logged, but the WebSocket is closed safely.
-
-    Notes:
-        - The `process_audio_queue` function runs as a separate task and will process 
-          incoming audio chunks asynchronously.
-        - Upon disconnection, a `None` value is added to the queue to signal termination 
-          of the processing task before closing the WebSocket connection.
-
+    Raises:
+        HTTPException:
+            - 400 Bad Request: If the project description is missing or invalid.
+            - 403 Forbidden: If the API key is invalid.
+            - 404 Not Found: If no project is found for the current user.
+            - 500 Internal Server Error: If schema generation fails or an unexpected error occurs.
     """
-    api_key = websocket.query_params.get("api_key")
-    version = websocket.query_params.get("version")
-    user_email = websocket.query_params.get("user_email")
-    
-    print(user_email)
+
+    project_description = request.project_description
+    api_key = request.api_key
+    conversation_id = request.conversation_id
+    user_feedback = request.user_feedback
+
+    logger.info(f"project description: {project_description}")
+    logger.info(f"api_key: {api_key}")
+    logger.info(f"conversation_id: {conversation_id}")
+    logger.info(f"user_feedback: {user_feedback}")
 
     if not verify_api_key(api_key):
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
-
-    await websocket.accept()
-
-    # Store user_email in the WebSocket object for later use
-    websocket.user_email = user_email
-
-    audio_queue = asyncio.Queue()
-    processing_task = asyncio.create_task(process_audio_queue(websocket, session, audio_queue, version))
-
-    try:
-        while True:
-            audio_chunk = await websocket.receive_bytes()
-            await audio_queue.put(audio_chunk)
-
-    except WebSocketDisconnect:
-        print("WebSocket disconnected by client")
-    except Exception as e:
-        print(f"Error in WebSocket connection: {str(e)}")
-    finally:
-        await audio_queue.put(None)
-        await processing_task
-
-        await websocket.close()
-        print("WebSocket connection closed")
-
-
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
-@router.get("/api/get-book/{book_name}")
-async def get_book(book_name: str, version_name: str, session: AsyncSession = Depends(aget_db)):
-    try:
-        logger.debug(f"Fetching book: {book_name}, version: {version_name}")
-
-        # Join Verse and Version tables and filter by Version.name and Verse.book
-        query = (
-            select(Verse)
-            .join(Version, Verse.version_id == Version.id)
-            .where(
-                Version.name == version_name,
-                Verse.book == book_name
-            )
-            .order_by(Verse.chapter, Verse.verse_number)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid API key"
         )
 
-        result = await session.execute(query)
-        verses = result.scalars().all()
+    if not project_description.strip() and not user_feedback:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Project description is required"
+        )
 
-        logger.debug(f"Found {len(verses)} verses for book: {book_name}, version: {version_name}")
+    try:
+        # Check if the user wants to finalize the project
+        if user_feedback and user_feedback.strip().lower() == "yes":
+            # Retrieve the latest project for the current user
+            project = await session.execute(
+                select(Project)
+                .where(Project.user_id == current_user.id)
+                .order_by(Project.created_at.desc())
+                .limit(1)
+            )
+            project = project.scalars().first()
 
-        if not verses:
-            logger.warning(f"No verses found for book: {book_name}, version: {version_name}")
-            raise HTTPException(status_code=404, detail="Book or version not found")
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No project found for the current user",
+                )
 
-        # Group verses by chapter
-        chapters = {}
-        for verse in verses:
-            if verse.chapter not in chapters:
-                chapters[verse.chapter] = []
-            chapters[verse.chapter].append({
-                "verse_number": verse.verse_number,
-                "text": verse.text
-            })
+            # Retrieve the schemas associated with the project
+            schemas = await session.execute(
+                select(Schema).where(Schema.project_id == project.id)
+            )
+            schemas = schemas.scalars().all()
 
-        # Convert to list of chapters
-        book_data = [{"chapter": chapter, "verses": verses} for chapter, verses in chapters.items()]
+            # Convert schemas to the response format
+            tables = []
+            for schema in schemas:
+                table = {
+                    "name": schema.name,
+                    "description": schema.description,
+                    "fields": schema.fields,  # Assuming fields is a JSON-compatible list
+                }
+                tables.append(table)
 
-        logger.debug(f"Returning book data for {book_name}: {len(book_data)} chapters")
-        return book_data
+            return GeneratedSchemaResponse(
+                project_title=project.name,
+                tables=tables,
+                follow_up_question="Your project has been finalized!",
+                conversation_id=conversation_id,
+            )
 
-    except HTTPException as he:
-        logger.error(f"HTTPException in get_book: {he.detail}")
-        raise he
+        # If it's not a "yes", proceed with schema generation/modification
+        # Retrieve or initialize conversation state
+        if conversation_id and conversation_id in conversation_states:
+            conversation_state = conversation_states[conversation_id]
+            same_project = True
+        else:
+            same_project = False
+            conversation_id = str(uuid.uuid4()) 
+            conversation_state = {
+                "is_first_prompt": True,
+                "generated_schema": None,
+                "follow_up_question": None,
+            }
+            conversation_states[conversation_id] = conversation_state
+
+        # Generate or modify the schema
+        schema, updated_conversation_state = await generate_schema(
+            project_description, conversation_state, user_feedback
+        )
+        if not schema:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to generate schema",
+            )
+        
+        if same_project:
+            updated_conversation_state["is_first_prompt"] = False
+            conversation_states[conversation_id] = updated_conversation_state
+
+        if conversation_state["is_first_prompt"]:
+            new_project = Project(
+                user_id=current_user.id,
+                name=schema.project_title or "Generated Schema",
+                description=project_description,
+            )
+            session.add(new_project)
+            await session.commit()
+            await session.refresh(new_project)
+
+            logger.info("Project Created Successfully")
+
+            for table in schema.tables:
+                fields_as_dicts = [field.model_dump() for field in table.fields]
+                
+                new_schema = Schema(
+                    project_id=new_project.id,
+                    name=table.name,
+                    description=table.description or "",
+                    schema_type="SQL",
+                    fields=fields_as_dicts,
+                )
+                session.add(new_schema)
+
+            await session.commit()
+            logger.info("Schemas saved successfully!")
+        else:
+            # If it's not the first prompt, update the existing project and schemas
+            # Retrieve the latest project for the current user
+            project = await session.execute(
+                select(Project)
+                .where(Project.user_id == current_user.id)
+                .order_by(Project.created_at.desc())
+                .limit(1)
+            )
+            project = project.scalars().first()
+
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No project found for the current user",
+                )
+
+            if project_description.strip():
+                project.description = project_description
+                await session.commit()
+
+            await session.execute(delete(Schema).where(Schema.project_id == project.id))
+            await session.commit()
+
+            for table in schema.tables:
+                fields_as_dicts = [field.model_dump() for field in table.fields]
+                
+                new_schema = Schema(
+                    project_id=project.id,
+                    name=table.name,
+                    description=table.description or "",
+                    schema_type="SQL",
+                    fields=fields_as_dicts,
+                )
+                session.add(new_schema)
+
+            await session.commit()
+            logger.info("Schemas updated successfully!")
+
+        return GeneratedSchemaResponse(
+            project_title=schema.project_title or "Generated Schema",
+            tables=[table.dict() for table in schema.tables],
+            follow_up_question=schema.follow_up_question,
+            conversation_id=conversation_id,
+        )
+
     except Exception as e:
-        logger.error(f"Unexpected error in get_book: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
-    
+        logger.error(f"Error generating schema: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating schema: {str(e)}",
+        )
