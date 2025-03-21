@@ -1,87 +1,187 @@
-import { useState } from "react"; // Import useState
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../shared/header";
-import Introduction from "../shared/Introduction"; // Import the Introduction component
+import Introduction from "../shared/introduction";
+import { USER_PROJECTS_URL } from "../shared/constants/constants";
+
+interface Schema {
+  id: string;
+  name: string;
+  description?: string;
+  schema_type: string;
+  fields: Array<{
+    name: string;
+    type: string;
+    required: boolean;
+    description?: string;
+  }>;
+  created_at: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+  url: string;
+  schemas: Schema[];
+}
 
 const HomePage = () => {
-  const navigate = useNavigate(); // Initialize the navigate function
-  const [isLoading, setIsLoading] = useState(false); // State to manage loading
-  const [introComplete, setIntroComplete] = useState(false); // State to track if introduction is complete
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [introComplete, setIntroComplete] = useState(false);
+  const [message, setMessage] = useState("");
+  const [projects, setProjects] = useState<Project[]>([]);
 
-  // Sample project data with schema
-  const projects = [
-    {
-      id: 1,
-      title: "Database Schema for User Roles",
-    },
-    {
-      id: 2,
-      title: "Employee Management Database",
-    },
-    {
-      id: 3,
-      title: "Permissions & Access Control Schema",
-    },
-    {
-      id: 4,
-      title: "Customer Orders & Payments Schema",
-    },
-    {
-      id: 5,
-      title: "Product & Cart Schema",
-    },
-  ];
-
-  // Function to handle image click
   const handleImageClick = () => {
-    setIsLoading(true); // Set loading state to true
-
-    // Simulate a 2-second delay before navigating
+    setIsLoading(true);
     setTimeout(() => {
-      navigate("/new-project"); // Navigate to /new-project
+      navigate("/new-project");
     }, 2000);
   };
+
+  const fetchUserProjects = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(USER_PROJECTS_URL, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch user projects");
+      }
+
+      const data = await response.json();
+      if (data.message) {
+        setProjects([]);
+        setMessage(data.message);
+      } else {
+        setProjects(data);
+        console.log(data);
+      }
+    } catch (error) {
+      console.error("Error fetching user projects:", error);
+    }
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+    const username = localStorage.getItem("username");
+
+    if (username === "anonymous") {
+      setIntroComplete(true);
+    } else if (
+      token &&
+      isLoggedIn &&
+      localStorage.getItem("token_expiry") &&
+      Date.now() < parseInt(localStorage.getItem("token_expiry")!)
+    ) {
+      setIntroComplete(true);
+      fetchUserProjects();
+    } else {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("isLoggedIn");
+      localStorage.removeItem("token_expiry");
+      localStorage.removeItem("username");
+    }
+  }, []);
+
+  useEffect(() => {
+    const tokenExpiry = localStorage.getItem("token_expiry");
+
+    if (tokenExpiry) {
+      const expiryTime = parseInt(tokenExpiry) - Date.now();
+
+      if (expiryTime > 0) {
+        const timeout = setTimeout(() => {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("isLoggedIn");
+          localStorage.removeItem("token_expiry");
+          setIntroComplete(false);
+        }, expiryTime);
+
+        return () => clearTimeout(timeout);
+      } else {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem("token_expiry");
+      }
+    }
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
       {!introComplete ? (
-        // Show the Introduction component if intro is not complete
         <Introduction
           onComplete={() => {
-            setIntroComplete(true); // Mark introduction as complete
+            setIntroComplete(true);
+            fetchUserProjects();
           }}
         />
       ) : (
-        // Show the HomePage content if intro is complete
         <>
           <Header showProjectTitle={false} />
-          <main className="flex-grow p-10">
+          <main
+            className={`flex-grow p-10 ${
+              projects.length > 0
+                ? ""
+                : "flex flex-col justify-center items-center"
+            }`}
+          >
             <h1 className="text-2xl font-bold mb-6">Recent Projects</h1>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => (
-                <div
-                  key={project.id}
-                  className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow hover:cursor-pointer hover:text-blue-500 hover:scale-105 transition-all"
+            <div className={` ${projects.length > 0 ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : ""}`}>
+              {projects.length > 0 ? (
+                projects.map((project) => (
+                  <div
+                    key={project.id}
+                    className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg hover:cursor-pointer hover:text-blue-500 hover:scale-105 transition-all"
+                    onClick={() => navigate(project.url)}
+                  >
+                    <h2 className="text-xl font-semibold mb-2">
+                      {project.name}
+                    </h2>
+                    {project.description && (
+                      <p className="text-gray-600 mb-4">
+                        {project.description}
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-500">
+                      Created at:{" "}
+                      {new Date(project.created_at).toLocaleString()}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Schemas: {project.schemas.length}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <h1
+                  className={`text-gray-600 text-2xl ${
+                    projects.length > 0 ? "hidden" : ""
+                  }`}
                 >
-                  <h2 className="text-xl font-semibold mb-2">
-                    {project.title}
-                  </h2>
-                </div>
-              ))}
+                  {message}
+                </h1>
+              )}
             </div>
           </main>
           <footer className="bg-white shadow mt-auto py-4 text-center flex justify-center p-20">
-            {isLoading ? ( // Show loading spinner if isLoading is true
+            {isLoading ? (
               <div className="flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
               </div>
             ) : (
-              // Show the button image if not loading
               <img
                 src="/assets/button.png"
                 alt="User"
                 className="rounded-full mb-10 shadow-black shadow-2xl hover:scale-105 hover:cursor-pointer transition-all"
-                onClick={handleImageClick} // Add onClick handler
+                onClick={handleImageClick}
               />
             )}
           </footer>
