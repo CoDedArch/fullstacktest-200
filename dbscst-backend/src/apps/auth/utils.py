@@ -49,7 +49,7 @@ async def send_verification_email(email: str, token: str):
                       - 500 Internal Server Error: Failed to send verification email.
     """
      
-    verification_url = f"https://1b26-129-224-201-159.ngrok-free.app/auth/verify?token={token}"
+    verification_url = f"https://e367-129-224-201-178.ngrok-free.app/auth/verify?token={token}"
     
     msg = MIMEMultipart()
     msg["From"] = "KeyMap Team <kelvingbolo98@gmail.com>"
