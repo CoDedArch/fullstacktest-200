@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState} from "react";
+import { CHECK_EMAIL_URL, LOGIN_URL, SIGN_UP_URL } from "./constants/constants";
 
 const Introduction = ({ onComplete }: { onComplete: () => void }) => {
   const [showAuthOptions, setShowAuthOptions] = useState(true);
@@ -17,13 +18,11 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showCheckmark, setShowCheckmark] = useState(false);
 
-  // Validate email
   const validateEmail = (email: string) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
 
-  // Validate password strength
   const validatePassword = (password: string) => {
     const regex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
@@ -32,7 +31,7 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
 
   const checkEmailExists = async (email: string) => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/auth/check-email", {
+      const response = await fetch(CHECK_EMAIL_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -53,10 +52,8 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
     }
   };
 
-  // Handle "Next" button click for sign-up
   const handleNext = async () => {
     if (isLogin) {
-      // If logging in, submit the form
       await handleLoginSubmit();
       return;
     }
@@ -78,7 +75,7 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
             "This email is already registered. Please log in or use a different email."
           );
         } else {
-          setStep("details"); // Proceed to the details step
+          setStep("details"); 
         }
       } catch (err) {
         setError(
@@ -89,7 +86,6 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
         setIsLoading(false);
       }
     } else if (step === "details") {
-      // Validate password strength
       if (!validatePassword(password)) {
         setError(
           "Password must be at least 8 characters long, include an uppercase letter, a lowercase letter, a number, and a special character."
@@ -97,17 +93,15 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
         return;
       }
 
-      // Validate password match
       if (password !== confirmPassword) {
         setError("Passwords do not match.");
         return;
       }
 
-      await handleSignUpSubmit(); // Proceed to signup
+      await handleSignUpSubmit(); 
     }
   };
 
-  // Handle form submission for sign-up
   const handleSignUpSubmit = async () => {
     const userData = {
       email,
@@ -120,7 +114,7 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
     setError("");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/auth/signup", {
+      const response = await fetch(SIGN_UP_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -135,9 +129,8 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
       }
 
       setIsWaitingForVerification(true);
-      setShowAuthOptions(false); // Hide auth options while waiting for verification
+      setShowAuthOptions(false);
 
-      // Poll the backend for verification status
       const pollVerificationStatus = async () => {
         try {
           const loginResponse = await fetch(
@@ -160,8 +153,8 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
             setTimeout(() => {
               setIsWaitingForVerification(false);
               setShowCheckmark(false);
-              onComplete(); // Complete the process after verification
-              window.location.reload(); // Reload the page after sign-up
+              onComplete(); 
+              window.location.reload();
             }, 1500);
           }
         } catch (err) {
@@ -179,7 +172,6 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
     }
   };
 
-  // Handle form submission for login
   const handleLoginSubmit = async () => {
     if (!validateEmail(email)) {
       setError("Please enter a valid email address.");
@@ -195,7 +187,7 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
     setError("");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/auth/login", {
+      const response = await fetch(LOGIN_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -222,8 +214,8 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
       setTimeout(() => {
         setShowAuthOptions(false);
         setShowCheckmark(false);
-        onComplete(); // Complete the process
-        window.location.reload(); // Reload the page after login
+        onComplete(); 
+        window.location.reload(); 
       }, 1500);
 
       setEmail("");
@@ -261,7 +253,7 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
                 className="text-white text-2xl sm:text-4xl font-extrabold pl-10"
               >
                 {isWaitingForVerification
-                  ? "🎉 One last step! Verify your email to unlock the full VerseCatch experience. 🎉"
+                  ? "🎉 One last step! Verify your email to unlock the full KeyMap experience. 🎉"
                   : "How would you like to proceed?"}
               </motion.h2>
               <div className="flex flex-wrap gap-18 justify-center pb-10 p-2">
@@ -271,17 +263,17 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
                   transition={{ delay: 0.5, duration: 0.5 }}
                   whileTap={{ scale: 0.9 }}
                   style={{
-                    backgroundColor: "#FFFFFF", // Soft white background
-                    color: "#457B9D", // Muted blue text color
+                    backgroundColor: "#FFFFFF",
+                    color: "#457B9D",
                   }}
                   className="w-fit px-6 py-2 pb-10 rounded-lg hover:cursor-pointer shadow-2xl shadow-black hover:bg-[#F0F4F8] transition-colors text-xl font-bold"
                 >
                   <h1 className="text-3xl text-black font-bold text-center">
                     {isWaitingForVerification
-                      ? "VerseCatch Team 📖😊"
+                      ? "KeyMap Team 📖😊"
                       : isLogin
-                      ? "Login to VerseCatch"
-                      : "Create your VerseCatch account"}
+                      ? "Login to KeyMap"
+                      : "Create your KeyMap account"}
                   </h1>
                   <div className="space-y-3">
                     <h2 className="text-sm text-center text-black font-bold">
