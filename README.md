@@ -59,6 +59,26 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 Replace the placeholders (your_api_key, your_openai_api_key, etc.) with your actual values.
 
+to get the API_KEY
+
+```
+import secrets
+import hashlib
+
+# Generate a secure random input string
+input_string = secrets.token_urlsafe(32)  # Generates a 32-byte (256-bit) secure random key
+
+# Compute its SHA-256 hash
+hash_object = hashlib.sha256(input_string.encode())
+hashed_string = hash_object.hexdigest()
+
+# Print the pair
+print("Input String:", input_string)
+print("SHA-256 Hash:", hashed_string)
+```
+
+your API_KEY = hashed_string (Backend) and the API_KEY for your client(frontend) will be the input_string
+
 ### 3. Start the Development Server
 Navigate to the src directory and run the following command to start the FastAPI development server:
 ```bash
