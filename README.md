@@ -89,9 +89,7 @@ Create a .env file in the root of the dbscst-frontend directory and add the foll
 
 ```bash
 # .env
-REACT_APP_API_URL=http://localhost:8000  # Backend API URL
-REACT_APP_API_KEY=your_api_key 
-
+VITE_API_KEY=your_api_key 
 ```
 
 ### 3. Start the Development Server

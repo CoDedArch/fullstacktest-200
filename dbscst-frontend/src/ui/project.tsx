@@ -37,7 +37,7 @@ const Project = () => {
     try {
       const token = localStorage.getItem("access_token");
       console.log("Token:", token);
-      const API_KEY = "e8ce358cf4d831935f6138e4b777c8c73c5b6f6051ab2aa5ced6b8d66a564f1e";
+      const API_KEY =  import.meta.env.VITE_API_KEY;
       console.log(API_KEY)
       const apiResponse = await fetch(GENERATE_SCHEMA_URL, {
         method: "POST",
