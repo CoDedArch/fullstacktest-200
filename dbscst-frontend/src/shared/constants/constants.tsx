@@ -7,7 +7,7 @@ export const SINGLE_PROJECT_URL =
   "http://127.0.0.1:8000/api/user-projects/project/get/";
 export const PROJECT_SCHEMA_UPDATE_URL =
   "http://127.0.0.1:8000/api/user-projects/project/update/";
-export const API_KEY_VERIFICATION = process.env.REACT_APP_API_KEY;
+
 
 export interface HeaderProps {
   showProjectTitle?: boolean;

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState} from "react";
+import { useState } from "react";
 import { CHECK_EMAIL_URL, LOGIN_URL, SIGN_UP_URL } from "./constants/constants";
 
 const Introduction = ({ onComplete }: { onComplete: () => void }) => {
@@ -75,7 +75,7 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
             "This email is already registered. Please log in or use a different email."
           );
         } else {
-          setStep("details"); 
+          setStep("details");
         }
       } catch (err) {
         setError(
@@ -98,7 +98,7 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
         return;
       }
 
-      await handleSignUpSubmit(); 
+      await handleSignUpSubmit();
     }
   };
 
@@ -133,19 +133,16 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
 
       const pollVerificationStatus = async () => {
         try {
-          const loginResponse = await fetch(
-            "http://127.0.0.1:8000/auth/login",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                email: userData.email,
-                password: userData.password,
-              }),
-            }
-          );
+          const loginResponse = await fetch(LOGIN_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: userData.email,
+              password: userData.password,
+            }),
+          });
 
           if (loginResponse.ok) {
             clearInterval(pollingInterval);
@@ -153,7 +150,7 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
             setTimeout(() => {
               setIsWaitingForVerification(false);
               setShowCheckmark(false);
-              onComplete(); 
+              onComplete();
               window.location.reload();
             }, 1500);
           }
@@ -214,8 +211,8 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
       setTimeout(() => {
         setShowAuthOptions(false);
         setShowCheckmark(false);
-        onComplete(); 
-        window.location.reload(); 
+        onComplete();
+        window.location.reload();
       }, 1500);
 
       setEmail("");
@@ -254,7 +251,7 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
               >
                 {isWaitingForVerification
                   ? "🎉 One last step! Verify your email to unlock the full KeyMap experience. 🎉"
-                  : "How would you like to proceed?"}
+                  : ""}
               </motion.h2>
               <div className="flex flex-wrap gap-18 justify-center pb-10 p-2">
                 <motion.div
@@ -279,7 +276,7 @@ const Introduction = ({ onComplete }: { onComplete: () => void }) => {
                     <h2 className="text-sm text-center text-black font-bold">
                       {isLogin
                         ? "Welcome back! Please log in to continue."
-                        : "Start your journey and catch meaningful verses effortlessly."}
+                        : "Generate your Project Schemas, effortlessly with KeyMap"}
                     </h2>
                     <h2
                       className={`text-lg text-center text-blue-500 font-bold  ${
