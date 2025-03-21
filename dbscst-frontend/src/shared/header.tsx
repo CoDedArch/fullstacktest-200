@@ -1,37 +1,38 @@
 import React from "react";
-import { useNavigate } from "react-router-dom"; // Import useNavigate
+import { useNavigate } from "react-router-dom";
 
-// Define the props interface
 interface HeaderProps {
-  showProjectTitle?: boolean; // Optional prop to control visibility
-  userImageSrc?: string; // Optional prop to specify the user image source
+  showProjectTitle?: boolean;
+  userImageSrc?: string;
+  projectTitle?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ showProjectTitle = true, userImageSrc = "/assets/user.png" }) => {
-  const navigate = useNavigate(); // Initialize the navigate function
+const Header: React.FC<HeaderProps> = ({
+  showProjectTitle = true,
+  userImageSrc = "/assets/user.png",
+  projectTitle = "New Project",
+}) => {
+  const navigate = useNavigate();
 
-  // Function to handle logo click
   const handleLogoClick = () => {
-    navigate("/"); // Navigate to the home page
+    navigate("/");
   };
 
   return (
     <header className="bg-white shadow">
       <ul className="flex justify-between items-center px-10 py-4">
         <li>
-          {/* Make the logo clickable */}
           <img
             src="/assets/logo.png"
             alt="Logo"
             className="h-10 hover:cursor-pointer"
-            onClick={handleLogoClick} // Add onClick handler
+            onClick={handleLogoClick}
           />
         </li>
-        {showProjectTitle && ( // Conditionally render the "New Project" li
-          <li className="text-lg font-semibold">New Project</li>
+        {showProjectTitle && (
+          <li className="text-lg font-semibold">{projectTitle}</li>
         )}
         <li>
-          {/* Use the userImageSrc prop for the image source */}
           <img src={userImageSrc} alt="User" className="h-10 rounded-full" />
         </li>
       </ul>
