@@ -2,37 +2,15 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../shared/header";
 import Introduction from "../shared/introduction";
-import { USER_PROJECTS_URL } from "../shared/constants/constants";
+import { ProjectInterface, USER_PROJECTS_URL } from "../shared/constants/constants";
 
-interface Schema {
-  id: string;
-  name: string;
-  description?: string;
-  schema_type: string;
-  fields: Array<{
-    name: string;
-    type: string;
-    required: boolean;
-    description?: string;
-  }>;
-  created_at: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  created_at: string;
-  url: string;
-  schemas: Schema[];
-}
 
 const HomePage = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const [message, setMessage] = useState("");
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectInterface[]>([]);
 
   const handleImageClick = () => {
     setIsLoading(true);

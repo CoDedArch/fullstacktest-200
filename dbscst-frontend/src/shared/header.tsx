@@ -1,11 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-
-interface HeaderProps {
-  showProjectTitle?: boolean;
-  userImageSrc?: string;
-  projectTitle?: string;
-}
+import { HeaderProps } from "./constants/constants";
 
 const Header: React.FC<HeaderProps> = ({
   showProjectTitle = true,

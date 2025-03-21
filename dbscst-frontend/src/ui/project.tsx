@@ -2,32 +2,15 @@ import { useState } from "react"; // Import useState
 import Header from "../shared/header";
 import {
   API_KEY_VERIFICATION,
-  GENERATE_SCHEMA_URL,
+  GENERATE_SCHEMA_URL, ProjectSchema
 } from "../shared/constants/constants";
 
-interface Table {
-  name: string;
-  description: string;
-  fields: Array<{
-    name: string;
-    type: string;
-    required: boolean;
-    description: string;
-  }>;
-}
-
-interface Schema {
-  project_title: string;
-  follow_up_question: string;
-  tables: Table[];
-  conversation_id?: string;
-}
 
 const Project = () => {
   const [userInput, setUserInput] = useState("");
   const [userPrompt, setUserPrompt] = useState("");
   const [showWelcome, setShowWelcome] = useState(true);
-  const [schema, setSchema] = useState<Schema | null>(null);
+  const [schema, setSchema] = useState<ProjectSchema | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [showSchema, setShowSchema] = useState(false);
@@ -72,7 +55,7 @@ const Project = () => {
         throw new Error("Failed to generate schema");
       }
 
-      const data: Schema = await apiResponse.json();
+      const data: ProjectSchema = await apiResponse.json();
       console.log("Response data:", data);
 
       setSchema(data);
