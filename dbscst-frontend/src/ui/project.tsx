@@ -1,4 +1,5 @@
-import { useState } from "react"; // Import useState
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../shared/header";
 import {
   GENERATE_SCHEMA_URL, ProjectSchema
@@ -6,6 +7,7 @@ import {
 
 
 const Project = () => {
+  const navigate = useNavigate();
   const [userInput, setUserInput] = useState("");
   const [userPrompt, setUserPrompt] = useState("");
   const [showWelcome, setShowWelcome] = useState(true);
@@ -13,6 +15,11 @@ const Project = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [showSchema, setShowSchema] = useState(false);
+
+  const handleImageClick = () => {
+    navigate("/new-project");
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +37,8 @@ const Project = () => {
     try {
       const token = localStorage.getItem("access_token");
       console.log("Token:", token);
-      const API_KEY = process.env.REACT_APP_API_KEY;
-
+      const API_KEY = "e8ce358cf4d831935f6138e4b777c8c73c5b6f6051ab2aa5ced6b8d66a564f1e";
+      console.log(API_KEY)
       const apiResponse = await fetch(GENERATE_SCHEMA_URL, {
         method: "POST",
         headers: {
@@ -198,6 +205,18 @@ const Project = () => {
             </button>
           </div>
         </form>
+        <div className="flex justify-center">
+          {
+            showSchema && (
+              <img
+              src="/assets/button.png"
+              alt="User"
+              className="rounded-full w-55 mb-10 shadow-black shadow-2xl hover:scale-105 hover:cursor-pointer transition-all"
+              onClick={handleImageClick}
+            />
+            )
+          }
+        </div>
       </footer>
     </div>
   );
