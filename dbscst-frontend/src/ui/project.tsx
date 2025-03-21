@@ -1,7 +1,6 @@
 import { useState } from "react"; // Import useState
 import Header from "../shared/header";
 import {
-  API_KEY_VERIFICATION,
   GENERATE_SCHEMA_URL, ProjectSchema
 } from "../shared/constants/constants";
 
@@ -31,7 +30,7 @@ const Project = () => {
     try {
       const token = localStorage.getItem("access_token");
       console.log("Token:", token);
-      const API_KEY = API_KEY_VERIFICATION;
+      const API_KEY = process.env.REACT_APP_API_KEY;
 
       const apiResponse = await fetch(GENERATE_SCHEMA_URL, {
         method: "POST",
