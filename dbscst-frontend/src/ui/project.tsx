@@ -18,6 +18,7 @@ const Project = () => {
 
   const handleImageClick = () => {
     navigate("/new-project");
+    window.location.reload();
   };
 
 
@@ -87,9 +88,9 @@ const Project = () => {
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
       <Header
-        showProjectTitle={true}
+        showProjectTitle={userPrompt ? true : false}
         userImageSrc="/assets/user1.png"
-        projectTitle={schema?.project_title || "New Project"}
+        projectTitle={schema?.project_title.replace(/['"]+/g, "") || "New Project"}
       />
       <main
         className={`flex-grow p-10 h-full flex flex-col ${
@@ -105,7 +106,7 @@ const Project = () => {
         {showWelcome && (
           <div className="flex flex-col items-center p-8 text-2xl">
             <h1 className="text-2xl font-semibold mb-2">
-              Welcome, <i>User!</i>
+              Welcome, <i>User.</i>
             </h1>
             <div className="text-gray-600">What are we building today?</div>
           </div>
@@ -121,21 +122,21 @@ const Project = () => {
                   {schema.tables.map((table, index) => (
                     <div
                       key={index}
-                      className="bg-white p-6 rounded-lg shadow-md"
+                      className="bg-white rounded-lg border-2 border-gray-200"
                     >
-                      <h3 className="text-xl font-semibold mb-4 bg-slate-200">
+                      <h3 className="text-xl font-semibold mb-4 table-header p-2 pl-4">
                         {table.name}
                       </h3>
-                      <p className="text-gray-600 mb-4">{table.description}</p>
+                      <p className="text-gray-600 mb-4 px-4">{table.description}</p>
                       <div className="space-y-4">
                         {table.fields.map((field, fieldIndex) => (
                           <div
                             key={fieldIndex}
-                            className="bg-gray-50 p-4 rounded-lg"
+                            className="px-4 pb-4 rounded-lg"
                           >
                             <div className="flex justify-between items-center">
                               <span className="font-medium">{field.name}</span>
-                              <span className="text-sm text-gray-500">
+                              <span className="text-sm">
                                 {field.type}
                               </span>
                             </div>
@@ -152,10 +153,10 @@ const Project = () => {
               </div>
             )}
             <div className="flex flex-col items-center">
-              <div className="bg-blue-100 p-3 rounded-t-2xl shadow-md mb-4 w-[40em]">
+              <div className="user-response p-3 pl-4 rounded-2xl mb-4 w-[40em]">
                 <p className="text-gray-800 text-lg">{userPrompt}</p>
               </div>
-              <div className="bg-white rounded-b-2xl shadow-md w-[40em] p-2">
+              <div className="bg-white w-[40em] p-2 pl-4">
                 <p className="text-gray-800 text-lg">
                   {isLoading ? (
                     <div className="flex justify-center items-center">
@@ -178,16 +179,16 @@ const Project = () => {
           onSubmit={handleSubmit}
           className="flex flex-col items-center mb-10"
         >
-          <div className="w-full flex justify-between max-w-2xl p-4 border border-gray-300 rounded-2xl mb-4 resize-none">
+          <div className="w-full flex justify-between items-center max-w-2xl p-4 border shadow shadow-gray-100 border-gray-300 rounded-2xl mb-4 resize-none">
             <div className="w-[90%]">
               <input
                 type="text"
                 placeholder={
                   schema
                     ? "Provide feedback or type 'yes' to finalize..."
-                    : "Ask anything..."
+                    : "Ask anything"
                 }
-                className="placeholder:text-2xl text-lg w-full focus:outline-none"
+                className="placeholder:text-lg text-lg w-full focus:outline-none"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
               />
@@ -211,7 +212,7 @@ const Project = () => {
               <img
               src="/assets/button.png"
               alt="User"
-              className="rounded-full w-55 mb-10 shadow-black shadow-2xl hover:scale-105 hover:cursor-pointer transition-all"
+              className="rounded-full w-55 mb-10 hover:scale-105 hover:cursor-pointer transition-all"
               onClick={handleImageClick}
             />
             )

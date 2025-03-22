@@ -2,20 +2,30 @@
 
 @layer base {
   :root {
-    --background: hsl(0 0% 90%);
+    --background: #F3F3F3;
     --foreground: hsl(0 0% 3.9%);
     --btn-black: hsl(0, 0%, 10%);
     --btn-red: hsla(2, 100%, 93%, 1);
     --text-red: hsla(3, 100%, 67%, 1);
+    --input-msg-color: hsla(0, 0%, 91%, 0.5);
   }
 }
 
 @theme{
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --user-response: var(--input-msg-color);
+}
+
+.user-response {
+  background-color: var(--user-response);
 }
 
 main {
+  background-color: white;
+}
+
+.table-header{
   background-color: var(--color-background);
 }
 

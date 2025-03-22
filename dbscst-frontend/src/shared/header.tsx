@@ -20,7 +20,7 @@ const Header: React.FC<HeaderProps> = ({
           <img
             src="/assets/logo.png"
             alt="Logo"
-            className="h-10 hover:cursor-pointer"
+            className="hover:cursor-pointer"
             onClick={handleLogoClick}
           />
         </li>

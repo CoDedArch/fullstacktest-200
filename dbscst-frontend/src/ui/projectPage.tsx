@@ -166,13 +166,13 @@ const ProjectPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
-      <Header showProjectTitle={false} userImageSrc="/assets/user1.png" />
+      <Header showProjectTitle={true} projectTitle={project.name.replace(/['"]+/g, "")} userImageSrc="/assets/user1.png" />
       <main className="flex-grow p-10 h-full flex flex-col">
         <div className="w-full">
-          <h1 className="text-2xl font-bold mb-6">{project.name}</h1>
+          {/* <h1 className="text-2xl font-bold mb-6">{project.name}</h1>
           {project.description && (
             <p className="text-gray-600 mb-4">{project.description}</p>
-          )}
+          )} */}
 
           {updatedSchemas.length > 0 ? (
             <div className="mb-8">
@@ -181,9 +181,9 @@ const ProjectPage = () => {
                 {updatedSchemas.map((schema) => (
                   <div
                     key={schema.id}
-                    className="bg-white p-6 rounded-lg shadow-md w-full md:w-[45%] lg:w-[30%] mb-6"
+                    className="bg-white rounded-lg border-2 border-gray-200 w-full md:w-[45%] lg:w-[30%] mb-6"
                   >
-                    <h3 className="group flex justify-between text-xl font-semibold mb-4 bg-slate-200 p-2 rounded">
+                    <h3 className="group flex justify-between text-xl font-semibold mb-4 table-header p-2 pl-4 rounded">
                       {editing?.schemaId === schema.id &&
                       editing?.field === "name" ? (
                         <input
@@ -221,7 +221,7 @@ const ProjectPage = () => {
                       )}
                     </h3>
                     {schema.description && (
-                      <p className="text-gray-600 mb-4 flex justify-between group">
+                      <p className="text-gray-600 mb-4 pl-4 flex justify-between group">
                         {editing?.schemaId === schema.id &&
                         editing?.field === "description" ? (
                           <input
@@ -275,7 +275,7 @@ const ProjectPage = () => {
                       {schema.fields.map((field, fieldIndex) => (
                         <div
                           key={fieldIndex}
-                          className="bg-gray-50 p-4 rounded-lg relative group"
+                          className="px-4 pb-4 rounded-lg relative group"
                           onMouseEnter={() =>
                             setHoveredField({
                               schemaId: schema.id,
@@ -337,7 +337,7 @@ const ProjectPage = () => {
                                 </>
                               )}
                             </span>
-                            <span className="text-sm text-gray-500 flex justify-between gap-5">
+                            <span className="text-sm flex justify-between gap-5">
                               {editing?.schemaId === schema.id &&
                               editing?.field === `type-${field.name}` ? (
                                 <input

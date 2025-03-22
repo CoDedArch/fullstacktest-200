@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../shared/header";
 import Introduction from "../shared/introduction";
-import { ProjectInterface, USER_PROJECTS_URL } from "../shared/constants/constants";
-
+import {
+  ProjectInterface,
+  USER_PROJECTS_URL,
+} from "../shared/constants/constants";
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -94,7 +96,7 @@ const HomePage = () => {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
+    <div className="flex flex-col min-h-screen bg-white">
       {!introComplete ? (
         <Introduction
           onComplete={() => {
@@ -112,19 +114,25 @@ const HomePage = () => {
                 : "flex flex-col justify-center items-center"
             }`}
           >
-            <h1 className="text-2xl font-bold mb-6">Recent Projects</h1>
-            <div className={` ${projects.length > 0 ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : ""}`}>
+            <h1 className="text-2xl font-bold mb-6 text-center">
+              Recent Projects
+            </h1>
+            <div
+              className={` ${projects.length > 0 ? "text-center gap-6" : ""}`}
+            >
               {projects.length > 0 ? (
                 projects.map((project) => (
                   <div
                     key={project.id}
-                    className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg hover:cursor-pointer hover:text-blue-500 hover:scale-105 transition-all"
+                    className="p-6 "
                     onClick={() => navigate(project.url)}
                   >
                     <h2 className="text-xl font-semibold mb-2">
-                      {project.name}
+                      <span className="hover:text-blue-500 transition-all  hover:cursor-pointer">
+                        {project.name.replace(/['"]+/g, "")}
+                      </span>
                     </h2>
-                    {project.description && (
+                    {/* {project.description && (
                       <p className="text-gray-600 mb-4">
                         {project.description}
                       </p>
@@ -135,7 +143,7 @@ const HomePage = () => {
                     </p>
                     <p className="text-sm text-gray-500">
                       Schemas: {project.schemas.length}
-                    </p>
+                    </p> */}
                   </div>
                 ))
               ) : (
@@ -158,7 +166,7 @@ const HomePage = () => {
               <img
                 src="/assets/button.png"
                 alt="User"
-                className="rounded-full mb-10 shadow-black shadow-2xl hover:scale-105 hover:cursor-pointer transition-all"
+                className="rounded-full mb-10 hover:scale-105 hover:cursor-pointer transition-all"
                 onClick={handleImageClick}
               />
             )}
